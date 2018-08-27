@@ -1,0 +1,6 @@
+# Define default links for this module.
+crowdfundingproject.settings:
+  title: CFP Settings
+  description: Crowd Funding Project Elements Settings
+  route_name: crowdfundingproject.map_settings
+  parent: system.admin_config_services

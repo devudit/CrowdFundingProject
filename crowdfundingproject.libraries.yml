@@ -1,0 +1,79 @@
+crowdfundingproject:
+  version: 1.x
+  css:
+    theme:
+      css/crowdfundingproject.css: {}
+  js:
+    js/crowdfundingproject.js: {preprocess: false}
+  dependencies:
+    - core/jquery
+    - core/drupal
+    - core/jquery.once
+cfpajax:
+  version: 1.x
+  js:
+    js/cfp.ajax.js: {preprocess: false}
+  css:
+    theme:
+      css/cfp.ajax.css: {}
+  dependencies:
+    - core/jquery
+    - core/drupal
+    - core/jquery.once
+map:
+  version: 1.x
+  js:
+    js/map.js: {preprocess: false}
+    https://maps.googleapis.com/maps/api/js?key=YOUR_MAP_KEY&callback=cfpMap.init: { type: external, minified: true, attributes: { defer: true, async: true } }
+  css:
+    theme:
+      css/map.css: {}
+  dependencies:
+    - core/jquery
+    - core/drupal
+    - core/jquery.once
+steps:
+  version: 1.x
+  css:
+    theme:
+      css/featured.steps.css: {}
+comment:
+  version: 1.x
+  css:
+    theme:
+      css/comment.css: {}
+  js:
+    js/comment.js: {preprocess: false}
+  dependencies:
+    - core/jquery
+    - core/drupal
+    - core/jquery.once
+completed:
+  version: 1.x
+  css:
+    theme:
+      css/completed.css: {}
+  js:
+    https://maps.googleapis.com/maps/api/js?key=YOUR_MAP_KEY&callback=projectMap.init: { type: external, minified: true, attributes: { defer: true, async: true } }
+    js/completed.js: {preprocess: false}
+  dependencies:
+    - core/jquery
+    - core/drupal
+    - core/jquery.once
+social:
+  version: 1.x
+  js:
+    js/social.js: {preprocess: false}
+  dependencies:
+    - core/jquery
+    - core/drupal
+    - core/jquery.once
+location:
+  version: 1.x
+  js:
+    https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY&libraries=places&callback=gMapSearch.init: { type: external, minified: true, attributes: { defer: true, async: true } }
+    js/location.js: {preprocess: false}
+  dependencies:
+    - core/jquery
+    - core/drupal
+    - core/jquery.once

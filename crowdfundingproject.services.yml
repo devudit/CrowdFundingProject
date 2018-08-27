@@ -1,0 +1,9 @@
+services:
+ crowdfundingproject.modal_services:
+   class: Drupal\crowdfundingproject\ModalServices
+ crowdfundingproject.payment_services:
+    class: Drupal\crowdfundingproject\PaymentServices
+ crowdfundingproject.helper:
+    class: Drupal\crowdfundingproject\HelperServices
+ crowdfundingproject.comment:
+    class: Drupal\crowdfundingproject\CommentServices

@@ -1,0 +1,100 @@
+crowdfundingproject.project_create:
+  path: '/project-create'
+  defaults:
+    _form:  '\Drupal\crowdfundingproject\Form\CreateProjectForm'
+    _title: 'Start een Project'
+  requirements:
+    _permission: 'access content'
+crowdfundingproject.step:
+  path: '/cfp/step/{direction}/{step}'
+  defaults:
+    _controller: 'Drupal\crowdfundingproject\Controller\StepCallbackController::ajaxCallback'
+    _title: ''
+    direction: 'next'
+    step: 1
+  requirements:
+    _permission: 'access content'
+crowdfundingproject.ajax:
+  path: '/cfp/ajax/{type}/{id}'
+  defaults:
+    _controller: 'Drupal\crowdfundingproject\Controller\CfpAjaxCallbackController::ajaxCallback'
+    _title: ''
+    id: 0
+  requirements:
+    _permission: 'access content'
+crowdfundingproject.fragment_ajax:
+  path: '/cfp/ajax/fragment/{type}'
+  defaults:
+    _controller: 'Drupal\crowdfundingproject\Controller\CfpAjaxCallbackController::ajaxFragmentCallback'
+    _title: ''
+  requirements:
+    _permission: 'access content'
+crowdfundingproject.login_ajax:
+  path: '/cfp/login/ajax/{type}/{id}/{slug}/{anim_in}/{anim_out}'
+  defaults:
+    _controller: 'Drupal\crowdfundingproject\Controller\CfpAjaxCallbackController::ajaxLoginCallback'
+    _title: ''
+    id: 0
+    slug: 0
+    anim_in: 'fadeInUp'
+    anim_out: 'fadeOutDown'
+  requirements:
+    _permission: 'access content'
+crowdfundingproject.inline_comment:
+  path: '/cfp/inline-comment/{action}'
+  defaults:
+    _controller: 'Drupal\crowdfundingproject\Controller\InlineCommentController::inlineCommentCallback'
+    _title: ''
+    action: ''
+  methods: 'post'
+  requirements:
+    _permission: 'access content'
+    _role: 'authenticated'
+crowdfundingproject.facebook_settings:
+  path: '/admin/config/cfp/facebook'
+  defaults:
+    _form:  '\Drupal\crowdfundingproject\Form\FacebookForm'
+    _title: 'Facebook App Settings'
+  requirements:
+    _permission: 'administer site configuration'
+crowdfundingproject.map_settings:
+  path: '/admin/config/cfp/map'
+  defaults:
+    _form:  '\Drupal\crowdfundingproject\Form\GoogleMapForm'
+    _title: 'Google Map Settings'
+  requirements:
+    _permission: 'administer site configuration'
+crowdfundingproject.mollie_settings:
+  path: '/admin/config/cfp/mollie'
+  defaults:
+    _form:  '\Drupal\crowdfundingproject\Form\MolliePaymentForm'
+    _title: 'Mollie Payment Settings'
+  requirements:
+    _permission: 'administer site configuration'
+crowdfundingproject.mollie_redirect:
+  path: '/donation/status/{node}'
+  defaults:
+    _controller: 'Drupal\crowdfundingproject\Controller\PaymentController::statusMessage'
+    _title: ''
+    node: null
+  options:
+    parameters:
+      node:
+        type: entity:node
+  requirements:
+    _permission: 'access content'
+crowdfundingproject.mollie_webhook:
+  path: '/donation/webhook'
+  defaults:
+    _controller: 'Drupal\crowdfundingproject\Controller\PaymentController::webhook'
+    _title: ''
+  requirements:
+    _permission: 'access content'
+crowdfundingproject.social:
+  path: '/cfp/social/login'
+  defaults:
+    _controller: 'Drupal\crowdfundingproject\Controller\SocialController::loginResolver'
+    _title: ''
+  methods: 'post'
+  requirements:
+    _permission: 'access content'

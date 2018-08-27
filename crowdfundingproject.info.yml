@@ -1,0 +1,8 @@
+name: Crowd Funding Project
+type: module
+description: 'Crowd Funding Project'
+package: Web services
+dependencies:
+project: 'crowdfundingproject'
+version: 8.x
+core: 8.x

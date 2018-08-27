@@ -1,0 +1,329 @@
+<?php
+
+use Drupal\Core\Ajax\AppendCommand;
+use Drupal\Core\Ajax\AjaxResponse;
+use Drupal\crowdfundingproject\Ajax\DestinationRedirectCommand;
+use Drupal\crowdfundingproject\Ajax\RefreshPageCommand;
+use Drupal\crowdfundingproject\Ajax\UpdateFragmentCommand;
+use Drupal\crowdfundingproject\Ajax\RunAjaxCommand;
+use Drupal\Core\Form\FormStateInterface;
+use Drupal\crowdfundingproject\Fragments\UserLoginMenu;
+
+/**
+ * Implements hook_page_attachments
+ * Attach crowd funding library to specific page
+ * @param array $attachments
+ */
+function crowdfundingproject_page_attachments(array &$attachments) {
+  $current_path = \Drupal::service('path.current')->getPath();
+  if($current_path == '/project-create') {
+    $attachments['#attached']['library'][] = 'crowdfundingproject/crowdfundingproject';
+    $attachments['#attached']['drupalSettings']['cfpSettings']['module_url'] = drupal_get_path('module', 'crowdfundingproject');
+  }
+
+  /* facebook */
+  $facebook_header = '(function(d, s, id){
+       var js, fjs = d.getElementsByTagName(s)[0];
+       if (d.getElementById(id)) {return;}
+       js = d.createElement(s); js.id = id;
+       js.src = "https://connect.facebook.net/en_US/all.js";
+       fjs.parentNode.insertBefore(js, fjs);
+     }(document, \'script\', \'facebook-jssdk\'));';
+
+  $attachments['#attached']['html_head'][] = [
+    [
+      '#tag' => 'script',
+      '#value' => \Drupal\Core\Render\Markup::create($facebook_header),
+      '#weight' => -1,
+    ],
+    'facebook-script'
+  ];
+  $facebook_settings = \Drupal::config('cfp.facebook.settings');
+  $attachments['#attached']['drupalSettings']['cfpSocial']['fb_app_id'] = $facebook_settings->get('app_id');
+  $attachments['#attached']['library'][] = 'crowdfundingproject/social';
+}
+
+/**
+ * Implementation of hook_page_bottom()
+ * Adds modal to the footer of the page
+ * @param array $page_bottom
+ */
+function crowdfundingproject_page_bottom(array &$page_bottom){
+  $route = \Drupal::routeMatch()->getRouteObject();
+  $is_admin = \Drupal::service('router.admin_context')->isAdminRoute($route);
+  if (!$is_admin) {
+    $project = \Drupal::routeMatch()->getParameter('node');
+    if ($project instanceof \Drupal\node\NodeInterface) {
+      \Drupal::request()->request->set('id',$project->id());
+      $form = \Drupal::formBuilder()->getForm(Drupal\crowdfundingproject\Form\DonateForm::class);
+      $prefix = \Drupal::service('crowdfundingproject.modal_services')->getFormModalPrefix(
+        'Jouw steun telt',
+        'Selecteer een bedrag of vul zelf een bedrag in',
+        'donate-form',
+        'donate-form',
+        'fadeInUp',
+        'fadeOutLeft'
+      );
+      $suffix = \Drupal::service('crowdfundingproject.modal_services')->getFormModalSuffix();
+
+      $page_bottom['cfpModals'] = [
+        '#prefix' => '<div id="cfpModalsWrapper" class="cfpModals"><div class="cfpModalContentWrapper">',
+        '#suffix' => '</div></div>',
+        'form_wrapper' => [
+          '#prefix' => $prefix,
+          '#suffix' => $suffix,
+          'form' => $form,
+        ],
+      ];
+    } else {
+      $page_bottom['cfpModals'] = [
+        '#markup' => '<div id="cfpModalsWrapper" class="cfpModals"><div class="cfpModalContentWrapper"></div></div>',
+      ];
+    }
+    $page_bottom['cfpModals']['#attached']['library'][] = 'crowdfundingproject/cfpajax';
+    $page_bottom['cfpModals']['#attached']['drupalSettings']['cfpSettings'] = [];
+  }
+}
+
+/**
+ * Rebuild google map library with google map key
+ * Save google map key from backend
+ *
+ * Add key in library and comment this function
+ * this function may slow your system
+ *
+ * @param array $libraries
+ * @param $module
+ */
+function crowdfundingproject_library_info_alter(array &$libraries, $module) {
+  $google_map_key = \Drupal::config('cfp.gmap.settings')->get('google_map_key');
+  if($module === 'crowdfundingproject' && isset($libraries['map'])){
+    $gmapjs = 'https://maps.googleapis.com/maps/api/js?key='.$google_map_key.'&callback=cfpMap.init';
+    unset($libraries['map']['js']);
+    $libraries['map']['js'] = [
+        'js/map.js' => [
+          'preprocess' => false
+        ],
+        $gmapjs => [
+          'type' => 'external',
+          'minified' => true,
+          'attributes' => [
+            'defer' => true,
+            'async' => true
+          ]
+        ]
+    ];
+  }
+  if($module === 'crowdfundingproject' && isset($libraries['completed'])){
+    $gmapjs = 'https://maps.googleapis.com/maps/api/js?key='.$google_map_key.'&callback=projectMap.init';
+    unset($libraries['completed']['js']);
+    $libraries['completed']['js'] = [
+        'js/completed.js' => [
+            'preprocess' => false
+        ],
+        $gmapjs => [
+            'type' => 'external',
+            'minified' => true,
+            'attributes' => [
+                'defer' => true,
+                'async' => true
+            ]
+        ]
+    ];
+  }
+  if($module === 'crowdfundingproject' && isset($libraries['location'])){
+    $gmapjs = 'https://maps.googleapis.com/maps/api/js?key='.$google_map_key.'&libraries=places&callback=gMapSearch.init';
+    unset($libraries['location']['js']);
+    $libraries['location']['js'] = [
+      'js/geocomplete.js' => [
+        'preprocess' => false
+      ],
+      'js/location.js' => [
+        'preprocess' => false
+      ],
+      $gmapjs => [
+        'type' => 'external',
+        'minified' => true,
+        'attributes' => [
+          'defer' => true,
+          'async' => true
+        ]
+      ]
+    ];
+  }
+}
+
+
+function crowdfundingproject_form_alter(array &$form, FormStateInterface $form_state, $form_id){
+
+  if($form_id == 'cfp_user_login_form') {
+
+    $id = \Drupal::request()->get('id');
+    $slug = \Drupal::request()->get('slug');
+
+    $form['redirect_url'] = [
+      '#type' => 'hidden',
+      '#value' => $slug,
+    ];
+    $form['random_id'] = [
+      '#type' => 'hidden',
+      '#value' => $id,
+    ];
+    $form['facebook-button-wrapper'] = [
+      '#type' => 'container',
+      '#attributes' => [
+        'class' => ['facebook-login-wrapper'],
+      ],
+    ];
+    $form['facebook-button-wrapper']['facebook_login'] = array(
+      '#markup' => '<a class="blue_button button btn-default btn facebookLogin" 
+                    href="javascript:void(0)"
+                     data-id="'.$id.'"
+                     data-wrapper="#cfp_user_login_form_block_wrapper"
+                     data-redirect="'.$slug.'" >Meld je aan met Facebook</a>',
+      '#suffix' => '<p><small>We plaatsen niets zonder jouw toestemming.</small></p>',
+    );
+
+    unset($form['name']['#attributes']['autofocus']);
+    unset($form['name']['#description']);
+    unset($form['pass']['#description']);
+    $form['name']['#size'] = 15;
+    $form['pass']['#size'] = 15;
+
+    $form['name']['#attributes']['placeholder'] = 'E-mailadres';
+    $form['pass']['#attributes']['placeholder'] = 'Wachtwoord';
+
+    $form['#prefix'] = '<div id="cfp_user_login_form_block_wrapper" class="fws-login-form">';
+    $form['#suffix'] = '</div>';
+
+    $form['login-field-wrapper'] = [
+      '#type' => 'container',
+      '#attributes' => [
+        'class' => ['fws-login-field-wrapper'],
+      ],
+    ];
+
+    $form['login-field-wrapper']['name'] = $form['name'];
+    unset($form['name']);
+    $form['login-field-wrapper']['pass'] = $form['pass'];
+    unset($form['pass']);
+
+    $form['actions']['submit']['#ajax'] = [
+      'callback' => 'crowdfundingproject_login_form_ajax_callback',
+    ];
+
+    $form['actions']['submit-' . REQUEST_TIME] = $form['actions']['submit'];
+    unset($form['actions']['submit']);
+
+    if(\Drupal::config('user.settings')->get('register') != USER_REGISTER_ADMINISTRATORS_ONLY)
+    {
+      if(!$slug){
+        $slug = '_none';
+      }
+      $items = '<div class="modal-footer"><span class="modal-btn-signup">Nog geen account? <a class="cfpLoginForm use-ajax" data-type="register" data-animin="flipInY" data-animout="flipOutY" data-redirect="'.$slug.'" href="/cfp/login/ajax/register/'.$id.'/'.$slug.'/flipInY/flipOutY">Registreer hier</a></span></div>';
+      $form['user_links'] = [
+        '#markup' => $items,
+        '#weight' => 100
+      ];
+    }
+  }
+}
+
+function crowdfundingproject_login_form_ajax_callback(array $form, FormStateInterface $form_state){
+
+  global $base_url;
+
+  $response = new AjaxResponse();
+
+  $message_data = drupal_get_messages(NULL, FALSE);
+
+  // Check to see if there were any errors with the form submission
+  if(!isset($message_data['error']))
+  {
+    $slug = $form_state->getValue('redirect_url');
+    $id = $form_state->getValue('random_id');
+
+    if (substr($slug,0,6) == 'Modal:'){
+      drupal_set_message(t('You have been successfully logged in. Loading ...'));
+      $modalClass = strtolower(str_replace('Form','',substr($slug,6)));
+      $response->addCommand(new RunAjaxCommand($modalClass,$id));
+    } elseif($slug != '_none' && !empty($slug)){
+      drupal_set_message(t('You have been successfully logged in. Please wait while you are redirected.'));
+      $dest = $base_url.'/'.$slug;
+      $response->addCommand(new DestinationRedirectCommand(TRUE, $dest));
+    } else{
+      drupal_set_message(t('You have been successfully logged in. Please wait while the page is refreshed.'));
+      $response->addCommand(new RefreshPageCommand(TRUE));
+    }
+    $markup = UserLoginMenu::render(['response' => 'ajax']);
+    $response->addCommand(new UpdateFragmentCommand($markup['#markup'],'userMenuFragment'));
+  }
+
+  $renderer = \Drupal::service('renderer');
+  $messages = ['#type' => 'status_messages'];
+  $messages = $renderer->renderRoot($messages);
+
+  $selector = '#cfp_user_login_form_block_wrapper';
+  $response->addCommand(new AppendCommand($selector, $messages));
+
+  return $response;
+}
+
+/*******************************************************************************
+ *              User Account Settings
+ *******************************************************************************/
+/**
+ * Implements hook_link_alter
+ * @param $variables
+ */
+function crowdfundingproject_link_alter(&$variables) {
+  if(isset($variables['url']) && !empty($variables['url'])){
+    $url = $variables['url'];
+    if($url instanceof \Drupal\Core\Url){
+      $current_user = \Drupal::currentUser();
+      $roles = $current_user->getRoles();
+      if(!$url->isExternal() && in_array('initiator',$roles)) {
+        $routeName = $url->getRouteName();
+        if ($routeName == 'entity.user.edit_form') {
+          $variables['text'] = t('@text', [
+            '@text' => 'Mijn profiel',
+          ]);
+        }
+        elseif ($routeName == 'entity.user.canonical') {
+          $markup = $variables['text'];
+          if ($markup instanceof \Drupal\Core\StringTranslation\TranslatableMarkup) {
+            $arguments = $markup->getArguments();
+            $arguments['@local-task-title'] = "Mijn acties";
+            $text = new \Drupal\Core\StringTranslation\TranslatableMarkup('@local-task-title@active', $arguments);
+            $variables['text'] = $text;
+          }
+        }
+      }
+    }
+  }
+}
+
+/**
+ * Implements hook_form_FORM_ID_alter
+ * @param array $form
+ * @param \Drupal\Core\Form\FormStateInterface $form_state
+ * @param $form_id
+ */
+function crowdfundingproject_form_user_form_alter(array &$form, FormStateInterface $form_state, $form_id){
+  $current_user = \Drupal::currentUser();
+  $roles = $current_user->getRoles();
+  if(in_array('initiator',$roles)){
+
+    $form['#prefix'] = '<div id="initiator-profile-form" class="initiator-profile-form">';
+    $form['#suffix'] = '</div>';
+    /*Unset non usable user fields*/
+    unset($form['language']);
+    unset($form['contact']);
+    unset($form['account']['name']);
+    unset($form['account']['pass']);
+    unset($form['account']['current_pass']);
+    unset($form['account']['status']);
+    unset($form['account']['notify']);
+    unset($form['field_facebook_id']);
+  }
+}

@@ -1,0 +1,12 @@
+crowdfundingproject.gmap.task:
+  route_name: crowdfundingproject.map_settings
+  title: 'Google Map Setting'
+  base_route: crowdfundingproject.map_settings
+crowdfundingproject.mollie.task:
+  route_name: crowdfundingproject.mollie_settings
+  title: 'Mollie Payment Setting'
+  base_route: crowdfundingproject.map_settings
+crowdfundingproject.facebook.task:
+  route_name: crowdfundingproject.facebook_settings
+  title: 'Facebook App Settings'
+  base_route: crowdfundingproject.map_settings
